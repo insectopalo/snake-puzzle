@@ -2,9 +2,9 @@
 #include <stdlib.h>
 #include <time.h>
 #include <string.h>
-#define CUBE_SIDE 4
+#define CUBE_SIDE 3
 
-/* EXAMPLE SEQUENCES FOR THE CUBES (CHANGE THE #define CUBE_SIDE ACCORDINGLY)
+/* Example sequences (CHANGE THE #define CUBE_SIDE ACCORDINGLY)
    1) Real Pascu cube:
    int Sequence[] = {3,2,3,2,2,4,2,3,2,3,2,3,2,2,2,2,2,2,2,2,3,3,2,2,2,2,2,3,4,2,2,2,4,2,3,2,2,2,2,2,2,2,2,2,4,2};
    2) Shorter 4x4x4 sequence
@@ -12,55 +12,55 @@
    3) 3x3x3 cube
    int Sequence[] = {3,3,3,2,2,2,2,2,3,3,3,2,3,3,3,2,2};
 */
-int Sequence[] = {3,2,3,2,2,4,2,3,2,3,2,3,2,2,2,2,2,2,2,2,3,3,2,2,2,2,2,3,4,2,2,2,4,2,3,2,2,2,2,2,2,2,2,2,4,2};
 
+int Sequence[] = {3,3,3,2,2,2,2,2,3,3,3,2,3,3,3,2,2};
+/* Global variables */
+//int Sequence[] = {3,2,3,2,2,4,2,3,2,3,2,3,2,2,2,2,2,2,2,2,3,3,2,2,2,2,2,3,4,2,2,2,4,2,3,2,2,2,2,2,2,2,2,2,4,2};
 int step,dots,total;
 long int num;
-FILE *trajFile;
 
 int HamWalk[CUBE_SIDE*CUBE_SIDE*CUBE_SIDE][3];
 int ElementNum = sizeof (Sequence) / sizeof (int);
 
-void CreateNode(int x, int y, int z, int dir);
+/* Headers */
+/** Prints the Hamiltonian walk to a coordinates file */
+void printCSV (int HamWalk[][3], int seq[], int filenumber);
+/** Calculates the contact energy of the Hamiltonian walk */
 double calcEnergy (int HamWalk[][3], int dots);
+/** Creates a node with coordinates and checks for size/overlap */
+void CreateNode(int x, int y, int z, int dir);
 
-void PrintPdb (int dots, int HamWalk[][3], int filenumber)
+/* Main */
+int main ()
 {
-   int i,c;
-   char filename[8] = "res";
-   char strnumber[5];
-   sprintf(strnumber, "%d", filenumber);
-   for (c=0;c<4-strlen(strnumber);c++)
-   {
-      filename[3+c] = '0';
+   int b = 0;
+   int temp = 0;
+   for (b = 0; b < ElementNum; b++){
+       temp = temp + (Sequence[b]-1);
    }
-   strcat(filename,strnumber);
-   
-   
-   FILE *fp;
-   if ((fp = fopen(filename, "w")) == NULL)
-   {
-      printf("Cannot open file to write...\n");
-   } 
-   else if (fp = fopen(filename, "w"))
-   {
-      for (i=0;i<dots;i++)
-      {
-         fprintf(fp, "ATOM     %2d  BOX BOX     1      %2d.000  %2d.000  %2d.0000\n",i+1,HamWalk[i][0],HamWalk[i][1],HamWalk[i][2]);
-      }		
-      for (i=0;i<dots-1;i++)
-      {
-         fprintf(fp, "CONECT   %2d   %2d           \n",i+1,i+2);
-      }
-      fclose(fp);
-   }
+   temp = temp++;
+   printf("# There are %d grid positions to occupy by the given sequence\n",temp);
+   //  system("read -p Continue...");
+   step = 0;
+   dots = 0;
+   total = 0;
+   num = 0;
+   clock_t start = clock();
+
+   // Create root node and enter recursive tree building
+   CreateNode(0,0,0,6);
+
+   printf ("# Total number of solutions found: %d\n",total);
+   printf("# Time elapsed: %.4f seconds\n", ((double)clock() - start) / CLOCKS_PER_SEC);
+   return 0;
 }
 
+/* Functions */
 void printCSV (int HamWalk[][3], int seq[], int filenumber)
 {
    int i,c;
    int size = CUBE_SIDE * CUBE_SIDE * CUBE_SIDE;
-   char filename[12] = "res";
+   char filename[256] = "res";
    char strnumber[5];
    sprintf(strnumber, "%d", filenumber);
    for (c=0;c<4-strlen(strnumber);c++)
@@ -93,54 +93,6 @@ void printCSV (int HamWalk[][3], int seq[], int filenumber)
       fclose(fp);
    }
 }
-
-void printXYZ (int HamWalk[][3], int seq[], int length, FILE* fp)
-{
-   int i = length-1;
-   int segment_nb = 0;
-   int tot_segments = 0;
-   while ( i ) {
-      tot_segments++;
-      i = i - (seq[segment_nb++]-1);
-   }
-   fprintf(fp, "%d\n",tot_segments+1);
-   fprintf(fp, "E=%.4f\n",calcEnergy(HamWalk,length));
-   char buff[100];
-   sprintf(buff, "   C %10.5f %10.5f %10.5f\n",(double)HamWalk[0][0],(double)HamWalk[0][1],(double)HamWalk[0][2]);
-   fprintf(fp, "%s", buff);
-
-   segment_nb = 0;
-   for (segment_nb = 0; segment_nb < tot_segments; segment_nb++)
-   {
-      i += seq[segment_nb] - 1;
-      sprintf(buff, "   C %10.5f %10.5f %10.5f\n",(double)HamWalk[i][0],(double)HamWalk[i][1],(double)HamWalk[i][2]);
-      fprintf(fp, "%s", buff);
-   }		
-}
-
-void printPDBtraj (int HamWalk[][3], int seq[], int length, FILE* fp, long int num)
-{
-   int i = length-1;
-   int segment_nb = 0;
-   int tot_segments = 0;
-   while ( i ) {
-      tot_segments++;
-      i = i - (seq[segment_nb++]-1);
-   }
-   fprintf(fp, "MODEL %8li\n",num+1);
-   fprintf(fp, "ATOM     %2d  BOX BOX     1      %2d.000  %2d.000  %2d.0000\n",1,HamWalk[0][0],HamWalk[0][1],HamWalk[0][2]);
-   for (segment_nb = 0; segment_nb < tot_segments; segment_nb++)
-   {
-      i += seq[segment_nb] - 1;
-      fprintf(fp, "ATOM     %2d  BOX BOX     1      %2d.000  %2d.000  %2d.0000\n",segment_nb+2,HamWalk[i][0],HamWalk[i][1],HamWalk[i][2]);
-   }		
-   for (segment_nb = 0; segment_nb < tot_segments; segment_nb++)
-   {
-      fprintf(fp, "CONECT   %2d   %2d           \n",segment_nb+1,segment_nb+2);
-   }
-   fprintf(fp, "END\nENDMDL\n");
-}
-
 
 double calcEnergy (int HamWalk[][3], int dots)
 {
@@ -176,38 +128,6 @@ double calcEnergy (int HamWalk[][3], int dots)
    return mean_contacts;
 }
 
-// -----------------------------------------------------------------------------------
-int main ()
-{
-   int b = 0;
-   int temp = 0;
-   for (b=0;b<ElementNum;b++){temp = temp + (Sequence[b]-1);}
-   temp = temp++;
-   printf("# There are %d grid positions to occupy by the given sequence\n",temp);
-   //  system("read -p Continue...");
-   step = 0;
-   dots = 0;
-   total = 0;
-   num = 0;
-   clock_t start = clock();
-
-   char filename[] = "full_trajectory.pdb";
-   if ((trajFile = fopen(filename, "w")) == NULL)
-   {
-      fprintf(stderr,"Cannot open file to write...\n");
-   } 
-   // Create root node and enter recursive tree building
-   CreateNode(0,0,0,6);
-
-   fclose(trajFile);
-
-   printf ("# Total number of solutions found: %d\n",total);
-   printf("# Time elapsed: %.4f seconds\n", ((double)clock() - start) / CLOCKS_PER_SEC);
-   return 0;
-}
-// -----------------------------------------------------------------------------------
-
-
 void CreateNode(int x, int y, int z, int dir)
 {
    int i,n,a,h,j;
@@ -219,7 +139,10 @@ void CreateNode(int x, int y, int z, int dir)
   dots++;
   step++;
 
-  // Cube size condition
+  /* Checks that the Hamiltonian walk is not outside the bounds of the cube
+   * ISSUE: this should be fixed so that there is a general "range" funtion
+   * that will check on a given direction
+   */
   if (dir == 0 || dir == 1)
   {
      for (i=0;i<dots-1;i++)
@@ -251,7 +174,9 @@ void CreateNode(int x, int y, int z, int dir)
       }
    }
 
-   // No overlap condition
+   /* This checks that the new node's coordinates is not overlapping with the
+    * Hamiltonian walk done so far
+    */
    for (n=0;n<dots;n++)
    {
       for (j=n+1;j<dots;j++)
@@ -268,16 +193,12 @@ void CreateNode(int x, int y, int z, int dir)
    // double E = calcEnergy (HamWalk,dots);
    // fprintf(stdout, "%.4f\n",E);
    ########################################################### */
-   /* Print trajectory on file */
-   //if ( step > 1 ) printXYZ(HamWalk,Sequence,dots,trajFile);
-   if ( step > 1 ) printPDBtraj(HamWalk,Sequence,dots,trajFile,num++);
 
-   // End of sequence??
+   /* Checks if the end of the sequence has been reached */
    if (step == ElementNum+1)
    {
       total++;
-      //PrintPdb(dots,HamWalk,total);
-      //printCSV(HamWalk,Sequence,total);
+      printCSV(HamWalk,Sequence,total);
       printf("# Solution %d\n",total);
       return;
    }
@@ -290,11 +211,22 @@ void CreateNode(int x, int y, int z, int dir)
    // (4|5) -> (0|1|2|3)
    // 6     -> (0)
 
+   /* The children pointers are created depending on the direction of this
+    * present node
+    * (0|1) -> (2|3|4|5)
+    *   (x) -> (y/z)
+    * (2|3) -> (0|1|4|5)
+    *   (y) -> (x/z)
+    * (4|5) -> (0|1|2|3)
+    *   (z) -> (x/y)
+    */
    a = Sequence[step-1];
    a = a-1;
-   //---------------------------------------------------------------------------------------------------
+
+   /* from X */
    if (dir == 0 || dir == 1)
    {
+      /* to +Y */
       for (i=0;i<a-1;i++)
       {
          HamWalk[dots][0] = x;
@@ -311,7 +243,7 @@ void CreateNode(int x, int y, int z, int dir)
       {
          dots--;
       }
-      //---------------------------------------------------------------------------------------------------
+      /* to -Y */
       for (i=0;i<a-1;i++)
       {
          HamWalk[dots][0] = x;
@@ -328,7 +260,7 @@ void CreateNode(int x, int y, int z, int dir)
       {
          dots--;
       }
-      //---------------------------------------------------------------------------------------------------
+      /* to +Z */
       for (i=0;i<a-1;i++)
       {
          HamWalk[dots][0] = x;
@@ -345,7 +277,7 @@ void CreateNode(int x, int y, int z, int dir)
       {
          dots--;
       }
-      //---------------------------------------------------------------------------------------------------
+      /* to -Z */
       for (i=0;i<a-1;i++)
       {
          HamWalk[dots][0] = x;
@@ -363,9 +295,10 @@ void CreateNode(int x, int y, int z, int dir)
          dots--;
       }
    }
-   //------------------------------------------------------------------------------------------------
+   /* from Y */
    else if (dir == 2 || dir == 3)
    {
+      /* to +X */
       for (i=0;i<a-1;i++)
       {
          HamWalk[dots][0] = x+(i+1);
@@ -382,7 +315,7 @@ void CreateNode(int x, int y, int z, int dir)
       {
           dots--;
       }
-      //---------------------------------------------------------------------------------------------------
+      /* to -X */
       for (i=0;i<a-1;i++)
       {
          HamWalk[dots][0] = x-(i+1);
@@ -399,7 +332,7 @@ void CreateNode(int x, int y, int z, int dir)
       {
          dots--;
       }
-      //---------------------------------------------------------------------------------------------------
+      /* to +Z */
       for (i=0;i<a-1;i++)
       {
          HamWalk[dots][0] = x;
@@ -416,7 +349,7 @@ void CreateNode(int x, int y, int z, int dir)
       {
          dots--;
       }
-      //---------------------------------------------------------------------------------------------------
+      /* to -Z */
       for (i=0;i<a-1;i++)
       {
          HamWalk[dots][0] = x;
@@ -434,9 +367,10 @@ void CreateNode(int x, int y, int z, int dir)
          dots--;
       }
    }
-   //-----------------------------------------------------------------------------------------------------
+   /* from Z */
    else if (dir == 4 || dir == 5)
    {
+      /* to +X */
       for (i=0;i<a-1;i++)
       {
          HamWalk[dots][0] = x+(i+1);
@@ -453,7 +387,7 @@ void CreateNode(int x, int y, int z, int dir)
       {
          dots--;
       }
-      //---------------------------------------------------------------------------------------------------
+      /* to -X */
       for (i=0;i<a-1;i++)
       {
          HamWalk[dots][0] = x-(i+1);
@@ -470,7 +404,7 @@ void CreateNode(int x, int y, int z, int dir)
       {
          dots--;
       }
-      //---------------------------------------------------------------------------------------------------
+      /* to +Y */
       for (i=0;i<a-1;i++)
       {
          HamWalk[dots][0] = x;
@@ -487,7 +421,7 @@ void CreateNode(int x, int y, int z, int dir)
       {
          dots--;
       }
-      //---------------------------------------------------------------------------------------------------
+      /* to -Y */
       for (i=0;i<a-1;i++)
       {
          HamWalk[dots][0] = x;
@@ -505,7 +439,7 @@ void CreateNode(int x, int y, int z, int dir)
           dots--;
       }
    }
-   //-------------------------------------------------------------------------------------------------------
+   /* Starting dummy direction */
    else if (dir == 6)
    {
       for (i=0;i<a-1;i++)
@@ -526,16 +460,7 @@ void CreateNode(int x, int y, int z, int dir)
       }
       step--;
    }
-   else
-   {
-      printf("FATAL ERROR: direction does not exist\n");
-      system("read -p BROKEN OPERATION...");
-      return;
-   }
    return;
 }
-//---------------------------------------------------------------------------------------------------------------
-
-
 
 

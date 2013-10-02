@@ -1,5 +1,6 @@
-# Skip the output folder
+# Skip the output and shit folder
 output/
+shit/
 
 # Skip output files from the program
 raw/
