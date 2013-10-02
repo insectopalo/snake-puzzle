@@ -1,0 +1,49 @@
+This is a framework for folding snake puzzles
+
+1) Create a directory called "raw", where the solutions and temporal
+   files will be stored
+
+   $ mkdir raw
+
+2) Compile the source C file (lib/TheCube62.c) editing it with your
+   snake puzzle sequence beforehand
+
+   $ gcc TheCube62.c -o TheCube62
+
+3) Run the program, and move the result files to the "raw" folder
+   that you created before.
+
+   $ mv ./res* raw/
+
+4) Run FOLDIT.sh
+
+   $ sh FOLDIT.sh
+
+Previous runs will be overwritten, so please save the results on each run. The script
+will create the following directories:
+contacts  ->  containing the contact matrixes
+rotamers  ->  containing 24 rotamers for every solution
+
+A summary will be found in:
+output
+
+If output file is empty, maybe that there are no different conformations, which
+is quite weird, I guess. I'm investigating that at the moment.
+
+You might want to manually select the conformations that you prefer (generally
+the first quarter of them, since the rest will be identical) and copy them into
+the folder called "clean".
+
+$ cp raw/res0001.pdb clean
+$ cp raw/res0002.pdb clean
+   ...
+$ cp raw/res0008.pdb clean
+
+Then run the translation.nice.pl script to get a nice way of viewing the results
+together when opening with pymol 
+
+$ perl lib/translation.nice.pl
+
+This last script will create a new directory "clean_displaced_nicely" where
+the structures are shifted away from each other, being then easily viewed in 
+pymol.

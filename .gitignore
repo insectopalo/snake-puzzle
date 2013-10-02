@@ -1,0 +1,14 @@
+# Skip the output folder
+output/
+
+# Skip output files from the program
+raw/
+contacts/
+rotamers/
+
+# Skip compiled objects
+src/*.[oa]
+
+# Skip editors temp files
+*.~
+*/*.~
