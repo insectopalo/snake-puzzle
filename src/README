@@ -1,0 +1,3 @@
+To compile,
+
+gcc TheCube62.c -o TheCube62.a -lm

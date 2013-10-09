@@ -16,20 +16,20 @@
    int Sequence[] = {3,2,2,3,2,3,2,2,3,3,2,2,2,3,3,3,3};
 */
 
-int Sequence[] = {3,2,3,2,2,4,2,3,2,3,2,3,2,2,2,2,2,2,2,2,3,3,2,2,2,2,2,3,4,2,2,2,4,2,3,2,2,2,2,2,2,2,2,2,4,2};
+   int Sequence[] = {3,2,3,2,2,4,2,3,2,3,2,3,2,2,2,2,2,2,2,2,3,3,2,2,2,2,2,3,4,2,2,2,4,2,3,2,2,2,2,2,2,2,2,2,4,2};
 
 struct globalArgs_t {
   int output;                 /* -o option */
   char *outFileName;
   FILE *outFile;
   int specular;               /* -s option */
-  char * energyFileName;
+  char *energyFileName;
   FILE *energyFile;
   int countOnly;              /* -c option */
   int verbose;                /* -v option */
 } globalArgs;
 
-static const char *optString = "o:sE:ch?";
+static const char *optString = "o:sE:chv?";
 
 struct coordinates_t {
   int x;
@@ -50,7 +50,7 @@ struct HamiltonianWalk_t {
 
 /* Headers */
 /** Prints the Hamiltonian walk to a coordinates file */
-void printCSV (int seq[], char * filename);
+void printCSV (int seq[], FILE * fh);
 void print_hm ();
 /** Calculates the contact energy of the Hamiltonian walk */
 double calcEnergy (int HamWalk[][3], int *dots);
@@ -58,8 +58,10 @@ double calcEnergy (int HamWalk[][3], int *dots);
 void createNode(int direction, int bounds);
 /** initialises first two elements of puzzle */
 void init_hm ( int * seq, int volume );
-/** Checks if a number is a perfect cube **/
+/** Checks if a number is a perfect cube */
 int is_perfect_cube(int);
+/** Checks if there was a z dimension step already */
+int walked_in_z();
 /** Prints help message */
 void usage(char*);
 
@@ -72,7 +74,7 @@ int main ( int argc, char *argv[] )
   /****************************/
   globalArgs.output = 1;             /* Output is default to stdout */
   globalArgs.outFileName = NULL;     /* Output file name */
-  globalArgs.outFile = NULL;         /* Output FILE handle */
+  globalArgs.outFile = stdout;       /* Output FILE handle */
   globalArgs.specular = 0;           /* Print specular solutions */
   globalArgs.energyFileName = NULL;  /* Energy output file name */
   globalArgs.energyFile = NULL;      /* Energy output FILE handle */
@@ -101,6 +103,7 @@ int main ( int argc, char *argv[] )
         break;
       case 'v':
         globalArgs.verbose = 1;
+        break;
       case 'h':
         usage(argv[0]);
         exit(EXIT_SUCCESS);
@@ -164,12 +167,14 @@ int main ( int argc, char *argv[] )
   createNode('X', cubeSide);
   createNode('x', cubeSide);
   createNode('Z', cubeSide);
-  createNode('z', cubeSide);
+  if ( globalArgs.specular )
+    createNode('z', cubeSide);
   
   clock_t end = clock();
   fprintf (stderr, "Solutions found = %d\n", hm.solutions);
 
   fprintf(stderr, "Time elapsed = %d (%.3f secs)\n", (int) (end - start), (float) (end - start) / CLOCKS_PER_SEC);
+
   exit(EXIT_SUCCESS);
 }
 
@@ -392,46 +397,39 @@ void createNode(int dir, int bounds )
   /* Check if the end of the sequence has been reached */
   if (hm.last_element == sizeof (Sequence) / sizeof (int) - 1)
   {
-    fprintf(stderr, "------------ Solution found ------------\n");
+    if ( globalArgs.verbose )
+    {
+      fprintf(stderr, "------------ Solution found ------------\n");
+      print_hm();
+      fprintf(stderr, "----------------------------------------\n");
+    }
     hm.solutions++;
-    print_hm();
 
-    //if ( globalArgs.output )
-    //{
-    //  char filename[256] = "";
-    //  strcat(filename, globalArgs.outFileName);
-    //  strcat(filename, ".");
-    //  char strnumber[5];
-    //  sprintf(strnumber, "%d", hm.solutions);
+    if ( globalArgs.output )
+    {
+      if ( globalArgs.outFileName )
+      {
+        char fname[256] = "";
+        strcat(fname, globalArgs.outFileName);
+        strcat(fname, ".");
+        char strnumber[5];
+        sprintf(strnumber, "%04d", hm.solutions);
+        strcat(fname, strnumber);
 
-    //  int f_len = strlen( filename );
-    //  int c = 0;
-    //  for ( c = 0; c < 4 - strlen( strnumber ); c++ )
-    //    filename[f_len+c] = '0';
-    //  strcat(filename, strnumber);
-    //  printf("%s\n",filename);
-
-    //  //if ( fclose(fp) )
-    //   //fprintf(stderr,"File closed\n");
-    //  //if ( fp ) fclose(fp);
-    //  //if ( ( fp = fopen( filename, "w" ) ) == NULL )
-    //  //  fprintf(stderr, "Cannot open file to write output\n");
-    //  //else if( fp = fopen( filename, "w" ) )
-    //  //{
-    //  printCSV(Sequence, filename);
-    //  //  fclose(fp);
-    //  //  //printf("# Solution %d\n",hm.solutions);
-    //  //}
-
-    //  //if ( ( globalArgs.outFile = fopen( filename, "w" ) ) == NULL )
-    //  //  fprintf(stderr, "Cannot open file to write output\n");
-    //  //else if( globalArgs.outFile = fopen( filename, "w" ) )
-    //  //{
-    //  //  //printCSV(Sequence, globalArgs.outFile);
-    //  //  fclose(globalArgs.outFile);
-    //  //  //printf("# Solution %d\n",hm.solutions);
-    //  //}
-    //}
+        globalArgs.outFile = fopen(fname, "w");
+        if ( ! globalArgs.outFile )
+        {
+          fprintf(stderr, "Could not open %s for writing\n", fname);
+          exit(EXIT_FAILURE);
+        }
+      }
+      
+      printCSV(Sequence, globalArgs.outFile);
+      
+      if ( globalArgs.outFileName )
+        fclose(globalArgs.outFile);
+      
+    }
     
     hm.length -= elementLength;
     hm.last_direction = prv_dir;
@@ -463,7 +461,7 @@ void createNode(int dir, int bounds )
     if ( globalArgs.verbose ) fprintf(stderr, "<<<< Fallen through a node\n");
     createNode('Z', bounds);
     if ( globalArgs.verbose ) fprintf(stderr, "<<<< Fallen through a node\n");
-    createNode('z', bounds);
+    if ( walked_in_z() || globalArgs.specular ) createNode('z', bounds);
     if ( globalArgs.verbose ) fprintf(stderr, "<<<< Fallen through a node\n");
     break;
   case 'Y':
@@ -474,7 +472,7 @@ void createNode(int dir, int bounds )
     if ( globalArgs.verbose ) fprintf(stderr, "<<<< Fallen through a node\n");
     createNode('Z', bounds);
     if ( globalArgs.verbose ) fprintf(stderr, "<<<< Fallen through a node\n");
-    createNode('z', bounds);
+    if ( walked_in_z() || globalArgs.specular ) createNode('z', bounds);
     if ( globalArgs.verbose ) fprintf(stderr, "<<<< Fallen through a node\n");
     break;
   case 'Z':
@@ -506,33 +504,21 @@ void createNode(int dir, int bounds )
   return;
 }
 
-void printCSV (int seq[], char* filename)
+void printCSV (int seq[], FILE * fh)
 {
   int i,c;
-  int size= 1;
-  for (i = 0; i <  sizeof (seq) / sizeof (int); i++)
-    size += seq[i] - 1;
 
-  FILE * fh;
-  if ( fh = fopen(filename, "w") )
+  int segment_nb = 0;
+  int segment_size = seq[0]-1;
+  fprintf(fh, "%.3f,%.3f,%.3f\n",(float) hm.coord[0].x, (float) hm.coord[0].y, (float) hm.coord[0].z);
+  for (i=1; i<hm.length; i++)
   {
-    int segment_nb = 0;
-    int segment_size = seq[0]-1;
-    //fprintf(fh, "%d.000,%d.000,%d.0000\n",HamWalk[0][0],HamWalk[0][1],HamWalk[0][2]);
-    fprintf(fh, "%.3f,%.3f,%.3f\n",(float) hm.coord[0].x, (float) hm.coord[0].y, (float) hm.coord[0].z);
-    for (i=1; i<size; i++)
-    {
-       segment_size--;
-       if ( segment_size == 0 ) {
-          //fprintf(fh, "%d.000,%d.000,%d.0000\n",HamWalk[i][0],HamWalk[i][1],HamWalk[i][2]);
-          fprintf(fh, "%.3f,%.3f,%.3f\n",(float) hm.coord[i].x, (float) hm.coord[i].y, (float) hm.coord[i].z);
-          segment_size = seq[++segment_nb]-1;
-       }
-    }
+     segment_size--;
+     if ( segment_size == 0 ) {
+        fprintf(fh, "%.3f,%.3f,%.3f\n",(float) hm.coord[i].x, (float) hm.coord[i].y, (float) hm.coord[i].z);
+        segment_size = seq[++segment_nb]-1;
+     }
   }
-  else
-    fprintf(stderr, "File %s could not be opened\n", filename);
-
 }
 
 double calcEnergy (int HamWalk[][3], int *dots)
@@ -574,6 +560,11 @@ int is_perfect_cube(int n)
 {
   int root = round(cbrt(n));
   return  n == root * root * root;
+}
+
+int walked_in_z()
+{
+  return abs( hm.max.z - hm.min.z );
 }
 
 void usage(char* pname)
