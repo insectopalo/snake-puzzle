@@ -14,10 +14,11 @@ struct globalArgs_t {
   char *energyFileName;
   FILE *energyFile;
   int countOnly;              /* -c option */
+  int boundingBox;        /* -b option */
   int verbose;                /* -v option */
 } globalArgs;
 
-static const char *optString = "o:sE:chv?";
+static const char *optString = "o:sE:cb:hv?";
 
 struct coordinates_t {
   int x;
@@ -43,7 +44,7 @@ void print_hm ();
 /** Counts the number of contacts in the structure */
 int countContacts ();
 /** Creates a node with coordinates and checks for size/overlap */
-void createNode(int direction, int bounds);
+void createNode(int direction);
 /** initialises first two elements of puzzle */
 void init_hm ( int * seq, int volume );
 /** Checks if a number is a perfect cube */
@@ -67,6 +68,9 @@ int main ( int argc, char *argv[] )
   globalArgs.energyFileName = NULL;  /* Energy output file name */
   globalArgs.energyFile = NULL;      /* Energy output FILE handle */
   globalArgs.countOnly = 0;          /* Counts solutions, no output */
+  globalArgs.boundingBox = -1;       /* Limits the structure to a cube of this size
+                                         0 = infinite
+                                        -1 = cuberoot of length of sequence (cube)   */
   globalArgs.verbose = 0;            /* Prints heaps of stuff */
 
   int index;
@@ -75,6 +79,8 @@ int main ( int argc, char *argv[] )
 
   int c;
   while ((c = getopt (argc, argv, optString)) != -1)
+  {
+    char *ptr = NULL;
     switch (c)
     {
       case 'o':
@@ -89,6 +95,19 @@ int main ( int argc, char *argv[] )
       case 'c':
         globalArgs.countOnly = 1;
         break;
+      case 'b':
+        globalArgs.boundingBox = strtol( optarg, &ptr, 0);
+        if ( !( globalArgs.boundingBox ) && !( strcmp( optarg, ptr ) ) )
+        {
+          fprintf(stderr, "Argument for option -b has to be a non-negative integer or 0\n");
+          exit(EXIT_SUCCESS);
+        }
+        if ( globalArgs.boundingBox < 0 )
+        {
+          fprintf(stderr, "Argument for option -b cannot be negative\n");
+          exit(EXIT_FAILURE);
+        }
+        break;
       case 'v':
         globalArgs.verbose = 1;
         break;
@@ -100,6 +119,8 @@ int main ( int argc, char *argv[] )
           fprintf(stderr, "Option -%c requires an argument.\n", optopt);
         else if (optopt == 'E')
           fprintf(stderr, "Option -%c requires an argument.\n", optopt);
+        else if (optopt == 'b')
+          fprintf(stderr, "Option -%c requires an integer.\n", optopt);
         else if (isprint (optopt))
           fprintf(stderr, "Unknown option '-%c'.\n", optopt);
         else
@@ -108,6 +129,7 @@ int main ( int argc, char *argv[] )
         exit(EXIT_FAILURE);
       default:
         abort();
+      }
     }
   if ( globalArgs.countOnly ) // -c option overrides solutions output
     globalArgs.output = 0;
@@ -124,29 +146,29 @@ int main ( int argc, char *argv[] )
   /*********************/
 
   int i = 0;
+  int cubeSide = 0;
   int nbElements = sizeof (Sequence) / sizeof (int);
-  int cubeVolume = 1;
+  int structureLength = 1;
   for (i = 0; i < nbElements; i++)
-      cubeVolume += Sequence[i] - 1;
-  if ( ! is_perfect_cube(cubeVolume) )
+    structureLength += Sequence[i] - 1;
+
+  if ( ! is_perfect_cube(structureLength) )
   {
-    fprintf(stderr, "The sequence provided cannot fold into a cube "
-                    "(a volume of %d is not a perfect cube)\n", cubeVolume);
-    exit(EXIT_FAILURE);
+    fprintf(stderr, "WARNING: The sequence provided cannot fold into a perfect cube\n");
+    cubeSide = ceil( cbrt(structureLength) );
   }
-
-  int cubeSide = (int) cbrt(cubeVolume);
-  fprintf(stderr, "Volume of the cube = %d\n", cubeVolume);
-  fprintf(stderr, "  Side of the cube = %d\n", cubeSide);
-  fprintf(stderr, "Number of elements = %d\n", nbElements);
-
-  // ISSUE: Check length of each element is within bound/cubeVolume
-
-  /*********************************************************************/
-  /* Initialise the Hamiltonian walk structure with first two elements */
-  /*********************************************************************/
-
-  init_hm( Sequence, cubeVolume );
+  else
+    cubeSide = (int) cbrt(structureLength);
+  
+  if ( globalArgs.boundingBox == -1 )
+    globalArgs.boundingBox == cubeSide;
+  else
+    if ( globalArgs.boundingBox && pow( globalArgs.boundingBox, 3 ) < structureLength )
+    {
+      fprintf(stderr, "The sequence provided does not fit into the bounding box. "
+                      "It has to be at least %d\n", cubeSide);
+      exit(EXIT_FAILURE);
+    }
 
   if ( globalArgs.energyFileName )
   {
@@ -159,15 +181,21 @@ int main ( int argc, char *argv[] )
     }
   }
 
+  /*********************************************************************/
+  /* Initialise the Hamiltonian walk structure with first two elements */
+  /*********************************************************************/
+
+  init_hm( Sequence, structureLength );
+
   /**************************/
   /* Enter recursive search */
   /**************************/
 
-  createNode('X', cubeSide);
-  createNode('x', cubeSide);
-  createNode('Z', cubeSide);
+  createNode('X');
+  createNode('x');
+  createNode('Z');
   if ( globalArgs.specular )
-    createNode('z', cubeSide);
+    createNode('z');
   
   clock_t end = clock();
   fprintf (stderr, "Solutions found = %d\n", hm.solutions);
@@ -207,7 +235,7 @@ void init_hm ( int * seq, int volume )
   hm.min.x = hm.min.y = hm.min.z = 0;
 }
 
-void createNode(int dir, int bounds )
+void createNode(int dir )
 {
   int elementLength = Sequence[ hm.last_element + 1] - 1;
   if ( globalArgs.verbose )
@@ -216,61 +244,66 @@ void createNode(int dir, int bounds )
     fprintf(stderr, "    Trying to walk element #%d (length=%d) in %c\n", hm.last_element+1, elementLength, dir);
     fprintf(stderr, "    From = %d\n", hm.length + 1);
     fprintf(stderr, "    To   = %d\n", hm.length + elementLength);
-    fprintf(stderr, "      1) Check within bounds ");
   }
+
   /* Check that the Hamiltonian walk wouldn't be outside bounds */
-  switch (dir)
+  if ( globalArgs.boundingBox )
   {
-  case 'X':
-    if( ( hm.coord[hm.length].x + elementLength ) - hm.min.x > bounds-1 )
+    if ( globalArgs.verbose )
+      fprintf(stderr, "      Check bounding box ");
+    switch (dir)
     {
-      if ( globalArgs.verbose ) fprintf(stderr, " [ FAIL ]\n");
-      return;
+    case 'X':
+      if( ( hm.coord[hm.length].x + elementLength ) - hm.min.x > globalArgs.boundingBox - 1 )
+      {
+        if ( globalArgs.verbose ) fprintf(stderr, " [ FAIL ]\n");
+        return;
+      }
+      break;
+    case 'x':
+      if( hm.max.x - ( hm.coord[hm.length].x - elementLength ) > globalArgs.boundingBox - 1 )
+      {
+        if ( globalArgs.verbose ) fprintf(stderr, " [ FAIL ]\n");
+        return;
+      }
+      break;
+    case 'Y':
+      if( ( hm.coord[hm.length].y + elementLength ) - hm.min.y > globalArgs.boundingBox - 1 )
+      {
+        if ( globalArgs.verbose ) fprintf(stderr, " [ FAIL ]\n");
+        return;
+      }
+      break;
+    case 'y':
+      if( hm.max.y - ( hm.coord[hm.length].y - elementLength ) > globalArgs.boundingBox - 1 )
+      {
+        if ( globalArgs.verbose ) fprintf(stderr, " [ FAIL ]\n");
+        return;
+      }
+      break;
+    case 'Z':
+      if( ( hm.coord[hm.length].z + elementLength ) - hm.min.z > globalArgs.boundingBox - 1 )
+      {
+        if ( globalArgs.verbose ) fprintf(stderr, " [ FAIL ]\n");
+        return;
+      }
+      break;
+    case 'z':
+      if( hm.max.z - ( hm.coord[hm.length].z - elementLength ) > globalArgs.boundingBox - 1 )
+      {
+        if ( globalArgs.verbose ) fprintf(stderr, " [ FAIL ]\n");
+        return;
+      }
+      break;
+    default:
+      if ( globalArgs.verbose ) fprintf(stderr, "Direction '%d' unknown\n", dir);
+      exit(EXIT_FAILURE);
     }
-    break;
-  case 'x':
-    if( hm.max.x - ( hm.coord[hm.length].x - elementLength ) > bounds-1 )
-    {
-      if ( globalArgs.verbose ) fprintf(stderr, " [ FAIL ]\n");
-      return;
-    }
-    break;
-  case 'Y':
-    if( ( hm.coord[hm.length].y + elementLength ) - hm.min.y > bounds-1 )
-    {
-      if ( globalArgs.verbose ) fprintf(stderr, " [ FAIL ]\n");
-      return;
-    }
-    break;
-  case 'y':
-    if( hm.max.y - ( hm.coord[hm.length].y - elementLength ) > bounds-1 )
-    {
-      if ( globalArgs.verbose ) fprintf(stderr, " [ FAIL ]\n");
-      return;
-    }
-    break;
-  case 'Z':
-    if( ( hm.coord[hm.length].z + elementLength ) - hm.min.z > bounds-1 )
-    {
-      if ( globalArgs.verbose ) fprintf(stderr, " [ FAIL ]\n");
-      return;
-    }
-    break;
-  case 'z':
-    if( hm.max.z - ( hm.coord[hm.length].z - elementLength ) > bounds-1 )
-    {
-      if ( globalArgs.verbose ) fprintf(stderr, " [ FAIL ]\n");
-      return;
-    }
-    break;
-  default:
-    if ( globalArgs.verbose ) fprintf(stderr, "Direction '%d' unknown\n", dir);
-    exit(EXIT_FAILURE);
+    if ( globalArgs.verbose ) fprintf(stderr, " [ SUCCESS ]\n");
   }
-  if ( globalArgs.verbose ) fprintf(stderr, " [ SUCCESS ]\n");
 
   /* Check that the new node's coordinates wouldn't overlap */
-  if ( globalArgs.verbose ) fprintf(stderr, "      2) Check overlap ");
+  if ( globalArgs.verbose ) fprintf(stderr, "      Check overlap ");
   int candidates = 0;
   int seg = 0;
   int i = 0;
@@ -454,35 +487,35 @@ void createNode(int dir, int bounds )
   {
   case 'X':
   case 'x':
-    createNode('Y', bounds);
+    createNode('Y');
     if ( globalArgs.verbose ) fprintf(stderr, "<<<< Fallen through a node\n");
-    createNode('y', bounds);
+    createNode('y');
     if ( globalArgs.verbose ) fprintf(stderr, "<<<< Fallen through a node\n");
-    createNode('Z', bounds);
+    createNode('Z');
     if ( globalArgs.verbose ) fprintf(stderr, "<<<< Fallen through a node\n");
-    if ( walked_in_z() || globalArgs.specular ) createNode('z', bounds);
+    if ( walked_in_z() || globalArgs.specular ) createNode('z');
     if ( globalArgs.verbose ) fprintf(stderr, "<<<< Fallen through a node\n");
     break;
   case 'Y':
   case 'y':
-    createNode('X', bounds);
+    createNode('X');
     if ( globalArgs.verbose ) fprintf(stderr, "<<<< Fallen through a node\n");
-    createNode('x', bounds);
+    createNode('x');
     if ( globalArgs.verbose ) fprintf(stderr, "<<<< Fallen through a node\n");
-    createNode('Z', bounds);
+    createNode('Z');
     if ( globalArgs.verbose ) fprintf(stderr, "<<<< Fallen through a node\n");
-    if ( walked_in_z() || globalArgs.specular ) createNode('z', bounds);
+    if ( walked_in_z() || globalArgs.specular ) createNode('z');
     if ( globalArgs.verbose ) fprintf(stderr, "<<<< Fallen through a node\n");
     break;
   case 'Z':
   case 'z':
-    createNode('X', bounds);
+    createNode('X');
     if ( globalArgs.verbose ) fprintf(stderr, "<<<< Fallen through a node\n");
-    createNode('x', bounds);
+    createNode('x');
     if ( globalArgs.verbose ) fprintf(stderr, "<<<< Fallen through a node\n");
-    createNode('Y', bounds);
+    createNode('Y');
     if ( globalArgs.verbose ) fprintf(stderr, "<<<< Fallen through a node\n");
-    createNode('y', bounds);
+    createNode('y');
     if ( globalArgs.verbose ) fprintf(stderr, "<<<< Fallen through a node\n");
     break;
   default:
@@ -550,15 +583,20 @@ int walked_in_z()
 
 void usage(char* pname)
 {
-    fprintf(stderr, "%s [-sc] [-o file] [-E file]\n", pname);
+    fprintf(stderr, "%s [-scb] [-o file] [-E file]\n", pname);
     fprintf(stderr, "  -s       Compute also specular solutions (enantiomers)\n"
                     "  -c       Do not print any outputs, only count number of\n"
                     "           solutions. Overrides -o option\n"
-                    "  -o file  Prints the solutions to files <file>.001,\n"
-                    "           <file>.002, ... If no -o flag is provided, solutions\n"
-                    "           are printed to stdout by default\n"
-                    "  -E file  Calculate energies throughout folding. Argument to\n"
-                    "           this flag is the file where the energies are printed\n"
+                    "  -b int   Extend the size of the bounding box. The Hamiltonian\n"
+                    "           walk will never be larger than <int> in any direction.\n"
+                    "           If the flag is not provided, the bounding box will be\n"
+                    "           the smallest possible\n" 
+                    "  -o file  Prints the coordinates of the solutions to files\n"
+                    "           <file>.0001, <file>.0002, ... If no -o flag is\n"
+                    "           provided, solutions are printed to stdout by default\n"
+                    "  -E file  Calculate number of contacts throughout folding.\n"
+                    "           Argument to this flag is the file where the energies\n"
+                    "           are printed\n"
                     "  -v       Prints heaps of useless stuff. Mainly for debugging\n"
                     "  -h       Prints (this) help message\n");
 }
