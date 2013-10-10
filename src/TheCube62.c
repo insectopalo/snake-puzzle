@@ -40,8 +40,8 @@ struct HamiltonianWalk_t {
 /** Prints the Hamiltonian walk to a coordinates file */
 void printCSV (int seq[], FILE * fh);
 void print_hm ();
-/** Calculates the contact energy of the Hamiltonian walk */
-double calcEnergy (int HamWalk[][3], int *dots);
+/** Counts the number of contacts in the structure */
+int countContacts ();
 /** Creates a node with coordinates and checks for size/overlap */
 void createNode(int direction, int bounds);
 /** initialises first two elements of puzzle */
@@ -148,6 +148,17 @@ int main ( int argc, char *argv[] )
 
   init_hm( Sequence, cubeVolume );
 
+  if ( globalArgs.energyFileName )
+  {
+    globalArgs.energyFile = fopen(globalArgs.energyFileName, "w");
+    if ( ! globalArgs.energyFile )
+    {
+      fprintf(stderr, "Could not open %s to write\n", globalArgs.energyFileName);
+      globalArgs.energyFileName = NULL;
+      globalArgs.energyFile = NULL;
+    }
+  }
+
   /**************************/
   /* Enter recursive search */
   /**************************/
@@ -162,6 +173,9 @@ int main ( int argc, char *argv[] )
   fprintf (stderr, "Solutions found = %d\n", hm.solutions);
 
   fprintf(stderr, "Time elapsed = %d (%.3f secs)\n", (int) (end - start), (float) (end - start) / CLOCKS_PER_SEC);
+
+  if ( globalArgs.energyFile )
+    fclose ( globalArgs.energyFile );
 
   exit(EXIT_SUCCESS);
 }
@@ -374,13 +388,10 @@ void createNode(int dir, int bounds )
   hm.last_direction = dir;
   hm.last_element++;
 
-  //print_hm();
-
-  /*  ###########################################################
-  // THIS CALCULATES THE ENERGY AND PRINTS IT ON SCREEN
-  // double E = calcEnergy (HamWalk,*dots);
-  // fprintf(stdout, "%.4f\n",E);
-  ########################################################### */
+  if ( globalArgs.energyFileName )
+  {
+    fprintf(globalArgs.energyFile, "%d,%d\n", countContacts(), hm.length);
+  }
 
   /* Check if the end of the sequence has been reached */
   if (hm.last_element == sizeof (Sequence) / sizeof (int) - 1)
@@ -509,38 +520,20 @@ void printCSV (int seq[], FILE * fh)
   }
 }
 
-double calcEnergy (int HamWalk[][3], int *dots)
+int countContacts()
 {
-   int n,j,contacts;
-   double mean_contacts;
-   contacts = 0;
-   for (n=0;n<*dots;n++)
-   {
-      for (j=0;j<*dots;j++)
-      {
-         if (HamWalk[n][0] == HamWalk[j][0])
-         {
-            if ((HamWalk[n][1] == HamWalk[j][1]+1 && HamWalk[n][2] == HamWalk[j][2]) || (HamWalk[n][1] == HamWalk[j][1]-1 && HamWalk[n][2] == HamWalk[j][2]))
-            {
-               contacts++;
-            }
-            else if ((HamWalk[n][2] == HamWalk[j][2]+1 && HamWalk[n][1] == HamWalk[j][1]) || (HamWalk[n][2] == HamWalk[j][2]-1 && HamWalk[n][1] == HamWalk[j][1]))
-            {
-               contacts++;
-            }
-         }
-         else if (HamWalk[n][1] == HamWalk[j][1])
-         {
-            if ((HamWalk[n][0] == HamWalk[j][0]+1 && HamWalk[n][2] == HamWalk[j][2]) || (HamWalk[n][0] == HamWalk[j][0]-1 && HamWalk[n][2] == HamWalk[j][2]))
-            {
-               contacts++;
-            }
-         }
-      }
-   }
-   mean_contacts = contacts;
-   mean_contacts = mean_contacts / *dots;
-   return mean_contacts;
+  int i, j;
+  int contacts = 0;
+  for ( i = 0; i < hm.length; i++ )
+  {
+    for ( j = i+3; j < hm.length; j++ )
+    {
+      if ( abs(hm.coord[i].x - hm.coord[j].x) + abs(hm.coord[i].y - hm.coord[j].y) +abs(hm.coord[i].x - hm.coord[j].x) == 1 )
+        contacts++;
+    }
+  }
+
+  return contacts;
 }
 
 
