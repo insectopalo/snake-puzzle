@@ -11,7 +11,9 @@
    int Sequence[] = {3,3,3,2,2,2,2,2,3,3,3,2,3,3,3,2,2};
    4) 3x3x3 cube from http://www.mathematische-basteleien.de/snakecube.htm
    int Sequence[] = {3,2,2,3,2,3,2,2,3,3,2,2,2,3,3,3,3};
+   5) Mini 2x2x2 cube
+   int Sequence[] = {2,2,2,2,2,2,2};
 */
 
+   int Sequence[] = {3,2,3,2,2,4,2,3,2,3,2,3,2,2,2,2,2,2,2,2,3,3,2,2,2,2,2,3,4,2,2,2,4,2,3,2,2,2,2,2,2,2,2,2,4,2};
 
-   int Sequence[] = {3,2,2,3,2,3,2,2,3,3,2,2,2,3,3,3,3};

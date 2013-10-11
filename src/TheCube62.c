@@ -13,12 +13,14 @@ struct globalArgs_t {
   int specular;               /* -s option */
   char *energyFileName;
   FILE *energyFile;
+  char *newickFileName;
+  FILE *newickFile;
   int countOnly;              /* -c option */
   int boundingBox;        /* -b option */
   int verbose;                /* -v option */
 } globalArgs;
 
-static const char *optString = "o:sE:cb:hv?";
+static const char *optString = "o:sE:n:cb:hv?";
 
 struct coordinates_t {
   int x;
@@ -29,6 +31,7 @@ struct coordinates_t {
 struct HamiltonianWalk_t {
   struct coordinates_t * coord;
   int length;
+  int MAX_length;
   int last_element;
   int last_direction;
   int solutions;
@@ -47,6 +50,7 @@ int countContacts ();
 void createNode(int direction);
 /** initialises first two elements of puzzle */
 void init_hm ( int * seq, int volume );
+void destroy_hm();
 /** Checks if a number is a perfect cube */
 int is_perfect_cube(int);
 /** Checks if there was a z dimension step already */
@@ -67,6 +71,8 @@ int main ( int argc, char *argv[] )
   globalArgs.specular = 0;           /* Print specular solutions */
   globalArgs.energyFileName = NULL;  /* Energy output file name */
   globalArgs.energyFile = NULL;      /* Energy output FILE handle */
+  globalArgs.newickFileName = NULL;  /* Newick string output file name */
+  globalArgs.newickFile = NULL;      /* Newick output FILE handle */
   globalArgs.countOnly = 0;          /* Counts solutions, no output */
   globalArgs.boundingBox = -1;       /* Limits the structure to a cube of this size
                                          0 = infinite
@@ -108,6 +114,9 @@ int main ( int argc, char *argv[] )
           exit(EXIT_FAILURE);
         }
         break;
+      case 'n':
+        globalArgs.newickFileName = optarg;
+        break;
       case 'v':
         globalArgs.verbose = 1;
         break;
@@ -118,6 +127,8 @@ int main ( int argc, char *argv[] )
         if (optopt == 'o')
           fprintf(stderr, "Option -%c requires an argument.\n", optopt);
         else if (optopt == 'E')
+          fprintf(stderr, "Option -%c requires an argument.\n", optopt);
+        else if (optopt == 'n')
           fprintf(stderr, "Option -%c requires an argument.\n", optopt);
         else if (optopt == 'b')
           fprintf(stderr, "Option -%c requires an integer.\n", optopt);
@@ -161,7 +172,7 @@ int main ( int argc, char *argv[] )
     cubeSide = (int) cbrt(structureLength);
   
   if ( globalArgs.boundingBox == -1 )
-    globalArgs.boundingBox == cubeSide;
+    globalArgs.boundingBox = cubeSide;
   else
     if ( globalArgs.boundingBox && pow( globalArgs.boundingBox, 3 ) < structureLength )
     {
@@ -181,6 +192,23 @@ int main ( int argc, char *argv[] )
     }
   }
 
+  if ( globalArgs.newickFileName )
+  {
+    globalArgs.newickFile = fopen(globalArgs.newickFileName, "w");
+    if ( ! globalArgs.newickFile )
+    {
+      fprintf(stderr, "Could not open %s to write\n", globalArgs.newickFileName);
+      globalArgs.newickFileName = NULL;
+      globalArgs.newickFile = NULL;
+    }
+  }
+  
+  if ( globalArgs.verbose )
+  {
+    fprintf( stderr, "Cube Side=%d\n", cubeSide);
+    fprintf( stderr, "Bounding box=%d\n", globalArgs.boundingBox);
+  }
+
   /*********************************************************************/
   /* Initialise the Hamiltonian walk structure with first two elements */
   /*********************************************************************/
@@ -191,11 +219,27 @@ int main ( int argc, char *argv[] )
   /* Enter recursive search */
   /**************************/
 
+  if ( globalArgs.newickFile )
+    fprintf( globalArgs.newickFile, "(" );
   createNode('X');
+  if ( globalArgs.newickFile )
+    fprintf( globalArgs.newickFile, "+x:%.3f,", (float) Sequence[ (hm.last_element)+1 ] / structureLength );
   createNode('x');
+  if ( globalArgs.newickFile )
+    fprintf( globalArgs.newickFile, "-x:%.3f,", (float) Sequence[ (hm.last_element)+1 ] / structureLength );
   createNode('Z');
+  if ( globalArgs.newickFile )
+    fprintf( globalArgs.newickFile, "+z:%.3f", (float) Sequence[ (hm.last_element)+1 ] / structureLength );
+    if ( globalArgs.specular )
+      fprintf( globalArgs.newickFile, "," );
   if ( globalArgs.specular )
+  {
     createNode('z');
+    if ( globalArgs.newickFile )
+      fprintf( globalArgs.newickFile, "-z:%.3f", (float) Sequence[ (hm.last_element)+1 ] / structureLength );
+  }
+  if ( globalArgs.newickFile )
+    fprintf( globalArgs.newickFile, ");" );
   
   clock_t end = clock();
   fprintf (stderr, "Solutions found = %d\n", hm.solutions);
@@ -204,7 +248,10 @@ int main ( int argc, char *argv[] )
 
   if ( globalArgs.energyFile )
     fclose ( globalArgs.energyFile );
+  if ( globalArgs.newickFile )
+    fclose ( globalArgs.newickFile );
 
+  destroy_hm();
   exit(EXIT_SUCCESS);
 }
 
@@ -213,6 +260,7 @@ void init_hm ( int * seq, int volume )
 {
   int i = 0;
   hm.solutions = 0;
+  hm.MAX_length = volume;
   hm.coord = malloc(sizeof(struct coordinates_t)*volume);
   for( i = 0; i < volume; i++ )
     hm.coord[i].x = hm.coord[i].y = hm.coord[i].z = 0;
@@ -233,6 +281,12 @@ void init_hm ( int * seq, int volume )
   hm.max.z = 0;
 
   hm.min.x = hm.min.y = hm.min.z = 0;
+  
+}
+
+void destroy_hm()
+{
+  free( hm.coord );
 }
 
 void createNode(int dir )
@@ -364,7 +418,6 @@ void createNode(int dir )
 
   if ( globalArgs.verbose ) fprintf(stderr, " [ SUCCESS ]\n");
 
-  
   /* Update the hm structure with the new coordinates */
   if ( globalArgs.verbose ) fprintf(stderr, "     -----> UPDATE HM\n");
 
@@ -472,9 +525,12 @@ void createNode(int dir )
     hm.min.x = prv_min[0];
     hm.min.y = prv_min[1];
     hm.min.z = prv_min[2];
+
+    if ( globalArgs.newickFile )
+      fprintf( globalArgs.newickFile, "[S]" );
+    
     return;
   }
-
 
   /* The children pointers are created depending on the direction of this
    * present node
@@ -483,45 +539,85 @@ void createNode(int dir )
    *   (z) -> (x/y)
    */
 
+  if ( globalArgs.newickFile )
+    fprintf( globalArgs.newickFile, "(" );
+
   switch(dir)
   {
   case 'X':
   case 'x':
     createNode('Y');
+    if ( globalArgs.newickFile )
+      fprintf( globalArgs.newickFile, "+y:%.3f,", (float) Sequence[ (hm.last_element)+1 ] / hm.MAX_length );
     if ( globalArgs.verbose ) fprintf(stderr, "<<<< Fallen through a node\n");
     createNode('y');
+    if ( globalArgs.newickFile )
+      fprintf( globalArgs.newickFile, "-y:%.3f,", (float) Sequence[ (hm.last_element)+1 ] / hm.MAX_length );
     if ( globalArgs.verbose ) fprintf(stderr, "<<<< Fallen through a node\n");
     createNode('Z');
+    if ( globalArgs.newickFile )
+      fprintf( globalArgs.newickFile, "+z:%.3f", (float) Sequence[ (hm.last_element)+1 ] / hm.MAX_length );
+      if ( walked_in_z() || globalArgs.specular )
+        fprintf( globalArgs.newickFile, "," );
     if ( globalArgs.verbose ) fprintf(stderr, "<<<< Fallen through a node\n");
-    if ( walked_in_z() || globalArgs.specular ) createNode('z');
+    if ( walked_in_z() || globalArgs.specular )
+    {
+      createNode('z');
+      if ( globalArgs.newickFile )
+        fprintf( globalArgs.newickFile, "-z:%.3f", (float) Sequence[ (hm.last_element)+1 ] / hm.MAX_length );
+    }
     if ( globalArgs.verbose ) fprintf(stderr, "<<<< Fallen through a node\n");
     break;
   case 'Y':
   case 'y':
     createNode('X');
+    if ( globalArgs.newickFile )
+      fprintf( globalArgs.newickFile, "+x:%.3f,", (float) Sequence[ (hm.last_element)+1 ] / hm.MAX_length );
     if ( globalArgs.verbose ) fprintf(stderr, "<<<< Fallen through a node\n");
     createNode('x');
+    if ( globalArgs.newickFile )
+      fprintf( globalArgs.newickFile, "-x:%.3f,", (float) Sequence[ (hm.last_element)+1 ] / hm.MAX_length );
     if ( globalArgs.verbose ) fprintf(stderr, "<<<< Fallen through a node\n");
     createNode('Z');
+    if ( globalArgs.newickFile )
+      fprintf( globalArgs.newickFile, "+z:%.3f", (float) Sequence[ (hm.last_element)+1 ] / hm.MAX_length );
+      if ( walked_in_z() || globalArgs.specular )
+        fprintf( globalArgs.newickFile, "," );
     if ( globalArgs.verbose ) fprintf(stderr, "<<<< Fallen through a node\n");
-    if ( walked_in_z() || globalArgs.specular ) createNode('z');
+    if ( walked_in_z() || globalArgs.specular )
+    {
+      createNode('z');
+      if ( globalArgs.newickFile )
+        fprintf( globalArgs.newickFile, "-z:%.3f", (float) Sequence[ (hm.last_element)+1 ] / hm.MAX_length );
+    }
     if ( globalArgs.verbose ) fprintf(stderr, "<<<< Fallen through a node\n");
     break;
   case 'Z':
   case 'z':
     createNode('X');
+    if ( globalArgs.newickFile )
+      fprintf( globalArgs.newickFile, "+x:%.3f,", (float) Sequence[ (hm.last_element)+1 ] / hm.MAX_length );
     if ( globalArgs.verbose ) fprintf(stderr, "<<<< Fallen through a node\n");
     createNode('x');
+    if ( globalArgs.newickFile )
+      fprintf( globalArgs.newickFile, "-x:%.3f,", (float) Sequence[ (hm.last_element)+1 ] / hm.MAX_length );
     if ( globalArgs.verbose ) fprintf(stderr, "<<<< Fallen through a node\n");
     createNode('Y');
+    if ( globalArgs.newickFile )
+      fprintf( globalArgs.newickFile, "+y:%.3f,", (float) Sequence[ (hm.last_element)+1 ] / hm.MAX_length );
     if ( globalArgs.verbose ) fprintf(stderr, "<<<< Fallen through a node\n");
     createNode('y');
     if ( globalArgs.verbose ) fprintf(stderr, "<<<< Fallen through a node\n");
+    if ( globalArgs.newickFile )
+      fprintf( globalArgs.newickFile, "-y:%.3f", (float) Sequence[ (hm.last_element)+1 ] / hm.MAX_length );
     break;
   default:
     fprintf(stderr, "Direction '%d' unknown\n", dir);
     exit(EXIT_FAILURE);
   }
+
+  if ( globalArgs.newickFile )
+    fprintf( globalArgs.newickFile, ")" );
 
   hm.length -= elementLength;
   hm.last_direction = prv_dir;
@@ -597,6 +693,8 @@ void usage(char* pname)
                     "  -E file  Calculate number of contacts throughout folding.\n"
                     "           Argument to this flag is the file where the energies\n"
                     "           are printed\n"
+                    "  -n file  Print the Newick format string for the search tree.\n"
+                    "           Argument to this flag is the file output for the tree\n"
                     "  -v       Prints heaps of useless stuff. Mainly for debugging\n"
                     "  -h       Prints (this) help message\n");
 }
@@ -636,3 +734,4 @@ void print_hm ()
   fprintf(stderr, "max.z = %d\n", hm.max.z);
   fprintf(stderr, "solutions = %d\n", hm.solutions);
 }
+
