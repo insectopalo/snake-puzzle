@@ -16,7 +16,8 @@ struct globalArgs_t {
   char *newickFileName;
   FILE *newickFile;
   int countOnly;              /* -c option */
-  int boundingBox;        /* -b option */
+  int boundingBox;            /* -b option */
+  int maxSolutions;           /* -M option */
   int verbose;                /* -v option */
 } globalArgs;
 
@@ -77,6 +78,7 @@ int main ( int argc, char *argv[] )
   globalArgs.boundingBox = -1;       /* Limits the structure to a cube of this size
                                          0 = infinite
                                         -1 = cuberoot of length of sequence (cube)   */
+  globalArgs.maxSolutions = 0;       /* Limits the number of solutions (0 = no limit) */
   globalArgs.verbose = 0;            /* Prints heaps of stuff */
 
   int index;
@@ -106,13 +108,28 @@ int main ( int argc, char *argv[] )
         if ( !( globalArgs.boundingBox ) && !( strcmp( optarg, ptr ) ) )
         {
           fprintf(stderr, "Argument for option -b has to be a non-negative integer or 0\n");
-          exit(EXIT_SUCCESS);
+          exit(EXIT_FAILURE);
         }
         if ( globalArgs.boundingBox < 0 )
         {
           fprintf(stderr, "Argument for option -b cannot be negative\n");
           exit(EXIT_FAILURE);
         }
+        ptr = NULL;
+        break;
+      case 'M':
+        globalArgs.maxSolutions = strtol( optarg, &ptr, 0);
+        if ( !( globalArgs.maxSolutions ) && !( strcmp( optarg, ptr ) ) )
+        {
+          fprintf(stderr, "Argument for option -M has to be a non-negative integer or 0\n");
+          exit(EXIT_FAILURE);
+        }
+        if ( globalArgs.maxSolutions < 0 )
+        {
+          fprintf(stderr, "Argument for option -M cannot be negative\n");
+          exit(EXIT_FAILURE);
+        }
+        ptr = NULL;
         break;
       case 'n':
         globalArgs.newickFileName = optarg;
@@ -532,6 +549,9 @@ void createNode(int dir )
     return;
   }
 
+  if ( globalArgs.maxSolutions == hm.solutions )
+    return;
+
   /* The children pointers are created depending on the direction of this
    * present node
    *   (x) -> (y/z)
@@ -679,7 +699,7 @@ int walked_in_z()
 
 void usage(char* pname)
 {
-    fprintf(stderr, "%s [-scb] [-o file] [-E file]\n", pname);
+    fprintf(stderr, "%s [-scb] [-M int] [-o file] [-E file] [-n int]\n", pname);
     fprintf(stderr, "  -s       Compute also specular solutions (enantiomers)\n"
                     "  -c       Do not print any outputs, only count number of\n"
                     "           solutions. Overrides -o option\n"
@@ -687,6 +707,9 @@ void usage(char* pname)
                     "           walk will never be larger than <int> in any direction.\n"
                     "           If the flag is not provided, the bounding box will be\n"
                     "           the smallest possible\n" 
+                    "  -M int   Limits the number of solutions to find. The search\n"
+                    "           will stop when the number of solutions provided is\n"
+                    "           reached. A value of 0 means no limit (default)\n"
                     "  -o file  Prints the coordinates of the solutions to files\n"
                     "           <file>.0001, <file>.0002, ... If no -o flag is\n"
                     "           provided, solutions are printed to stdout by default\n"
