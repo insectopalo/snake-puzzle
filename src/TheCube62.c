@@ -21,7 +21,7 @@ struct globalArgs_t {
   int verbose;                /* -v option */
 } globalArgs;
 
-static const char *optString = "o:sE:n:cb:hv?";
+static const char *optString = "o:sE:M:n:cb:hv?";
 
 struct coordinates_t {
   int x;
@@ -149,6 +149,8 @@ int main ( int argc, char *argv[] )
           fprintf(stderr, "Option -%c requires an argument.\n", optopt);
         else if (optopt == 'b')
           fprintf(stderr, "Option -%c requires an integer.\n", optopt);
+        else if ( optopt == 'M')
+          fprintf(stderr, "Option -%c requires an integer.\n", optopt);
         else if (isprint (optopt))
           fprintf(stderr, "Unknown option '-%c'.\n", optopt);
         else
@@ -222,6 +224,17 @@ int main ( int argc, char *argv[] )
   
   if ( globalArgs.verbose )
   {
+    fprintf( stderr, "OPTIONS:\n");
+    fprintf( stderr, " - Output solutions: %s\n", globalArgs.output?"YES":"NO");
+    fprintf( stderr, " - Output file handle: %s\n", globalArgs.outFileName?globalArgs.outFileName:"stdout");
+    fprintf( stderr, " - Find enantiomers: %s\n", globalArgs.specular?"YES":"NO");
+    fprintf( stderr, " - Energy output file: %s\n", globalArgs.energyFileName?globalArgs.energyFileName:"NULL");
+    fprintf( stderr, " - Energy file handle open? %s\n", globalArgs.energyFile?"YES":"NO");
+    fprintf( stderr, " - Newick tree file: %s\n", globalArgs.newickFileName?globalArgs.newickFileName:"NULL");
+    fprintf( stderr, " - Newick file handle open? %s\n", globalArgs.newickFile?"YES":"NO");
+    fprintf( stderr, " - Only count: %s\n", globalArgs.countOnly?"YES":"NO");
+    fprintf( stderr, " - Bounding box: %d\n", globalArgs.boundingBox);
+    fprintf( stderr, " - Max solutions to return: %d\n\n", globalArgs.maxSolutions);
     fprintf( stderr, "Cube Side=%d\n", cubeSide);
     fprintf( stderr, "Bounding box=%d\n", globalArgs.boundingBox);
   }
@@ -544,12 +557,12 @@ void createNode(int dir )
     hm.min.z = prv_min[2];
 
     if ( globalArgs.newickFile )
-      fprintf( globalArgs.newickFile, "[S]" );
+      fprintf( globalArgs.newickFile, "S" );
     
     return;
   }
 
-  if ( globalArgs.maxSolutions == hm.solutions )
+  if ( globalArgs.maxSolutions && globalArgs.maxSolutions == hm.solutions )
     return;
 
   /* The children pointers are created depending on the direction of this
@@ -567,8 +580,10 @@ void createNode(int dir )
   case 'X':
   case 'x':
     createNode('Y');
-    if ( globalArgs.newickFile )
+    if ( globalArgs.newickFile ){
+      fprintf( stderr, "\n\n\nTRYING TO PRINT NEWICK\n\n\n");
       fprintf( globalArgs.newickFile, "+y:%.3f,", (float) Sequence[ (hm.last_element)+1 ] / hm.MAX_length );
+    }
     if ( globalArgs.verbose ) fprintf(stderr, "<<<< Fallen through a node\n");
     createNode('y');
     if ( globalArgs.newickFile )
