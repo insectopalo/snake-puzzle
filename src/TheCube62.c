@@ -581,7 +581,6 @@ void createNode(int dir )
   case 'x':
     createNode('Y');
     if ( globalArgs.newickFile ){
-      fprintf( stderr, "\n\n\nTRYING TO PRINT NEWICK\n\n\n");
       fprintf( globalArgs.newickFile, "+y:%.3f,", (float) Sequence[ (hm.last_element)+1 ] / hm.MAX_length );
     }
     if ( globalArgs.verbose ) fprintf(stderr, "<<<< Fallen through a node\n");
@@ -591,9 +590,11 @@ void createNode(int dir )
     if ( globalArgs.verbose ) fprintf(stderr, "<<<< Fallen through a node\n");
     createNode('Z');
     if ( globalArgs.newickFile )
+    {
       fprintf( globalArgs.newickFile, "+z:%.3f", (float) Sequence[ (hm.last_element)+1 ] / hm.MAX_length );
       if ( walked_in_z() || globalArgs.specular )
         fprintf( globalArgs.newickFile, "," );
+    }
     if ( globalArgs.verbose ) fprintf(stderr, "<<<< Fallen through a node\n");
     if ( walked_in_z() || globalArgs.specular )
     {
@@ -615,9 +616,11 @@ void createNode(int dir )
     if ( globalArgs.verbose ) fprintf(stderr, "<<<< Fallen through a node\n");
     createNode('Z');
     if ( globalArgs.newickFile )
+    {
       fprintf( globalArgs.newickFile, "+z:%.3f", (float) Sequence[ (hm.last_element)+1 ] / hm.MAX_length );
       if ( walked_in_z() || globalArgs.specular )
         fprintf( globalArgs.newickFile, "," );
+    }
     if ( globalArgs.verbose ) fprintf(stderr, "<<<< Fallen through a node\n");
     if ( walked_in_z() || globalArgs.specular )
     {
