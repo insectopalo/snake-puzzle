@@ -51,3 +51,4 @@ will search for all the possible non-overlapping Hamiltonian walks and only the
 number of contacts along the search will be written into a file (contacts.dat).
 The solutions will not be written into files nor stdout.
 
+Change
