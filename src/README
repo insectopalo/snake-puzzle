@@ -1,4 +1,4 @@
 Before compiling, change the config.h file
 with your sequence. To compile,
 
-gcc TheCube62.c -o TheCube62.a -lm
+gcc fold_snake.c -o fold_snake.a -lm
