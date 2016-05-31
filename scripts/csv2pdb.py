@@ -1,12 +1,21 @@
 #!/usr/bin/env python
-__author__ = "Gon Nido"
-__copyright__ = "Copyright 2012"
-__credits__ = ["Gon Nido"]
-__license__ = "GPL"
-__version__ = "1.0.1"
-__maintainer__ = "Gon Nido"
-__email__ = "insectopalo@gmail.com"
-__status__ = "Production"
+__author__ = "Gonzalo S. Nido"
+__copyright__  = "Copyright 2016"
+__license__    = "MIT"
+__email__      = "gonzalo.s.nido@gmail.com"
+
+"""Convert comma-separated coordinate files to PDB files.
+
+Usage:
+    program.py <input.csv> <output.pdb>
+
+Format of input/output files:
+    INPUT file is a comma-separated file with 3 columns: x, y, and z
+    respectively. Lines differing from this format will be skipped. The OUTPUT
+    file is a PDB file that can be visualised in molecular graphics
+    visualisation programs.
+
+"""
 
 import sys
 import re
@@ -15,6 +24,8 @@ import getopt
 def usage():
     sys.stderr.write("usage: "+sys.argv[0]+" <inputfile.csv> " +
                      "<outputfile.pdb>\n")
+    sys.stderr.write(sys.argv[0]+" converts files in comma-separated format " +
+                     "(CSV) into PDB files for molecular graphics visualisation software")
 
 def main(argv):
     inputfile = ''

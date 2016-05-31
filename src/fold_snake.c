@@ -7,21 +7,19 @@
 #include "config.h"
 
 struct globalArgs_t {
-  int output;                 /* -o option */
   char *outFileName;
   FILE *outFile;
-  int specular;               /* -s option */
+  int mirror;                 /* -m option */
   char *energyFileName;
   FILE *energyFile;
   char *newickFileName;
   FILE *newickFile;
-  int countOnly;              /* -c option */
   int boundingBox;            /* -b option */
   int maxSolutions;           /* -M option */
   int verbose;                /* -v option */
 } globalArgs;
 
-static const char *optString = "o:sE:M:n:cb:hv?";
+static const char *optString = "o:mE:M:n:b:hv?";
 
 struct coordinates_t {
   int x;
@@ -42,39 +40,40 @@ struct HamiltonianWalk_t {
  
 
 /* Headers */
-/** Prints the Hamiltonian walk to a coordinates file */
+/** Print Hamiltonian walk to a coordinates file */
 void printCSV (int seq[], FILE * fh);
+/** Print Hamiltonian walk to stderr (used in verbose mode) */
 void print_hm ();
-/** Counts the number of contacts in the structure */
+/** Count number of contacts in the structure */
 int countContacts ();
 /** Creates a node with coordinates and checks for size/overlap */
 void createNode(int direction);
-/** initialises first two elements of puzzle */
+/** Initialise first two elements of puzzle */
 void init_hm ( int * seq, int volume );
 void destroy_hm();
-/** Checks if a number is a perfect cube */
+/** Check whether a number is a perfect cube */
 int is_perfect_cube(int);
-/** Checks if there was a z dimension step already */
+/** Check whether there was a z dimension step already */
 int walked_in_z();
-/** Prints help message */
+/** Print help message/usage */
 void usage(char*);
 
 /* Main */
 int main ( int argc, char *argv[] )
 {
   clock_t start = clock();
-  /****************************/
-  /* Parse cmd line arguments */
-  /****************************/
-  globalArgs.output = 1;             /* Output is default to stdout */
+
+  /***************************************************************************/
+  /* Parse cmd line arguments                                                */
+  /***************************************************************************/
+
   globalArgs.outFileName = NULL;     /* Output file name */
-  globalArgs.outFile = stdout;       /* Output FILE handle */
-  globalArgs.specular = 0;           /* Print specular solutions */
+  globalArgs.outFile = NULL;         /* Output FILE handle */
+  globalArgs.mirror = 0;             /* Print mirror solutions */
   globalArgs.energyFileName = NULL;  /* Energy output file name */
   globalArgs.energyFile = NULL;      /* Energy output FILE handle */
   globalArgs.newickFileName = NULL;  /* Newick string output file name */
   globalArgs.newickFile = NULL;      /* Newick output FILE handle */
-  globalArgs.countOnly = 0;          /* Counts solutions, no output */
   globalArgs.boundingBox = -1;       /* Limits the structure to a cube of this size
                                          0 = infinite
                                         -1 = cuberoot of length of sequence (cube)   */
@@ -94,23 +93,20 @@ int main ( int argc, char *argv[] )
       case 'o':
         globalArgs.outFileName = optarg;
         break;
-      case 's':
-        globalArgs.specular = 1;
+      case 'm':
+        globalArgs.mirror = 1;
         break;
       case 'E':
         globalArgs.energyFileName = optarg;
-        break;
-      case 'c':
-        globalArgs.countOnly = 1;
         break;
       case 'b':
         globalArgs.boundingBox = strtol( optarg, &ptr, 0);
         if ( !( globalArgs.boundingBox ) && !( strcmp( optarg, ptr ) ) )
         {
-          fprintf(stderr, "Argument for option -b has to be a non-negative integer or 0\n");
+          fprintf(stderr, "Argument for option -b has to be a non-negative integer, -1, or 0\n");
           exit(EXIT_FAILURE);
         }
-        if ( globalArgs.boundingBox < 0 )
+        if ( globalArgs.boundingBox < -1 )
         {
           fprintf(stderr, "Argument for option -b cannot be negative\n");
           exit(EXIT_FAILURE);
@@ -161,8 +157,6 @@ int main ( int argc, char *argv[] )
         abort();
       }
     }
-  if ( globalArgs.countOnly ) // -c option overrides solutions output
-    globalArgs.output = 0;
 
   for (index = optind; index < argc; index++)
   {
@@ -171,9 +165,9 @@ int main ( int argc, char *argv[] )
     exit(EXIT_FAILURE);
   }
 
-  /*********************/
-  /* Declare variables */
-  /*********************/
+  /***************************************************************************/
+  /* Declare variables                                                       */
+  /***************************************************************************/
 
   int i = 0;
   int cubeSide = 0;
@@ -225,29 +219,27 @@ int main ( int argc, char *argv[] )
   if ( globalArgs.verbose )
   {
     fprintf( stderr, "OPTIONS:\n");
-    fprintf( stderr, " - Output solutions: %s\n", globalArgs.output?"YES":"NO");
-    fprintf( stderr, " - Output file handle: %s\n", globalArgs.outFileName?globalArgs.outFileName:"stdout");
-    fprintf( stderr, " - Find enantiomers: %s\n", globalArgs.specular?"YES":"NO");
+    fprintf( stderr, " - Output file handle: %s\n", globalArgs.outFileName?globalArgs.outFileName:"NULL");
+    fprintf( stderr, " - Find enantiomers: %s\n", globalArgs.mirror?"YES":"NO");
     fprintf( stderr, " - Energy output file: %s\n", globalArgs.energyFileName?globalArgs.energyFileName:"NULL");
     fprintf( stderr, " - Energy file handle open? %s\n", globalArgs.energyFile?"YES":"NO");
     fprintf( stderr, " - Newick tree file: %s\n", globalArgs.newickFileName?globalArgs.newickFileName:"NULL");
     fprintf( stderr, " - Newick file handle open? %s\n", globalArgs.newickFile?"YES":"NO");
-    fprintf( stderr, " - Only count: %s\n", globalArgs.countOnly?"YES":"NO");
     fprintf( stderr, " - Bounding box: %d\n", globalArgs.boundingBox);
     fprintf( stderr, " - Max solutions to return: %d\n\n", globalArgs.maxSolutions);
     fprintf( stderr, "Cube Side=%d\n", cubeSide);
     fprintf( stderr, "Bounding box=%d\n", globalArgs.boundingBox);
   }
 
-  /*********************************************************************/
-  /* Initialise the Hamiltonian walk structure with first two elements */
-  /*********************************************************************/
+  /***************************************************************************/
+  /* Initialise the Hamiltonian walk structure with first two elements       */
+  /***************************************************************************/
 
   init_hm( Sequence, structureLength );
 
-  /**************************/
-  /* Enter recursive search */
-  /**************************/
+  /***************************************************************************/
+  /* Enter recursive search                                                  */
+  /***************************************************************************/
 
   if ( globalArgs.newickFile )
     fprintf( globalArgs.newickFile, "(" );
@@ -260,9 +252,9 @@ int main ( int argc, char *argv[] )
   createNode('Z');
   if ( globalArgs.newickFile )
     fprintf( globalArgs.newickFile, "+z:%.3f", (float) Sequence[ (hm.last_element)+1 ] / structureLength );
-    if ( globalArgs.specular )
+    if ( globalArgs.mirror )
       fprintf( globalArgs.newickFile, "," );
-  if ( globalArgs.specular )
+  if ( globalArgs.mirror )
   {
     createNode('z');
     if ( globalArgs.newickFile )
@@ -285,7 +277,11 @@ int main ( int argc, char *argv[] )
   exit(EXIT_SUCCESS);
 }
 
-/* Functions */
+
+  /***************************************************************************/
+  /* Functions                                                               */
+  /***************************************************************************/
+
 void init_hm ( int * seq, int volume )
 {
   int i = 0;
@@ -330,7 +326,7 @@ void createNode(int dir )
     fprintf(stderr, "    To   = %d\n", hm.length + elementLength);
   }
 
-  /* Check that the Hamiltonian walk wouldn't be outside bounds */
+  /* Check Hamiltonian walk won't be outside bounds */
   if ( globalArgs.boundingBox )
   {
     if ( globalArgs.verbose )
@@ -386,7 +382,7 @@ void createNode(int dir )
     if ( globalArgs.verbose ) fprintf(stderr, " [ SUCCESS ]\n");
   }
 
-  /* Check that the new node's coordinates wouldn't overlap */
+  /* Check new node's coordinates won't overlap */
   if ( globalArgs.verbose ) fprintf(stderr, "      Check overlap ");
   int candidates = 0;
   int seg = 0;
@@ -448,7 +444,7 @@ void createNode(int dir )
 
   if ( globalArgs.verbose ) fprintf(stderr, " [ SUCCESS ]\n");
 
-  /* Update the hm structure with the new coordinates */
+  /* Update hm structure with the new coordinates */
   if ( globalArgs.verbose ) fprintf(stderr, "     -----> UPDATE HM\n");
 
   int from = hm.length + 1;
@@ -509,7 +505,7 @@ void createNode(int dir )
     fprintf(globalArgs.energyFile, "%d,%d\n", countContacts(), hm.length);
   }
 
-  /* Check if the end of the sequence has been reached */
+  /* Check whether end of the sequence has been reached */
   if (hm.last_element == sizeof (Sequence) / sizeof (int) - 1)
   {
     if ( globalArgs.verbose )
@@ -520,30 +516,25 @@ void createNode(int dir )
     }
     hm.solutions++;
 
-    if ( globalArgs.output )
+    if ( globalArgs.outFileName )
     {
-      if ( globalArgs.outFileName )
-      {
-        char fname[256] = "";
-        strcat(fname, globalArgs.outFileName);
-        strcat(fname, ".");
-        char strnumber[5];
-        sprintf(strnumber, "%04d", hm.solutions);
-        strcat(fname, strnumber);
+      char fname[256] = "";
+      strcat(fname, globalArgs.outFileName);
+      strcat(fname, ".");
+      char strnumber[5];
+      sprintf(strnumber, "%04d", hm.solutions);
+      strcat(fname, strnumber);
 
-        globalArgs.outFile = fopen(fname, "w");
-        if ( ! globalArgs.outFile )
-        {
-          fprintf(stderr, "Could not open %s for writing\n", fname);
-          exit(EXIT_FAILURE);
-        }
+      globalArgs.outFile = fopen(fname, "w");
+      if ( ! globalArgs.outFile )
+      {
+        fprintf(stderr, "Could not open %s for writing\n", fname);
+        exit(EXIT_FAILURE);
       }
-      
+    
       printCSV(Sequence, globalArgs.outFile);
-      
-      if ( globalArgs.outFileName )
-        fclose(globalArgs.outFile);
-      
+    
+      fclose(globalArgs.outFile);
     }
     
     hm.length -= elementLength;
@@ -565,7 +556,7 @@ void createNode(int dir )
   if ( globalArgs.maxSolutions && globalArgs.maxSolutions == hm.solutions )
     return;
 
-  /* The children pointers are created depending on the direction of this
+  /* The children pointers are created depending on the direction of the
    * present node
    *   (x) -> (y/z)
    *   (y) -> (x/z)
@@ -592,11 +583,11 @@ void createNode(int dir )
     if ( globalArgs.newickFile )
     {
       fprintf( globalArgs.newickFile, "+z:%.3f", (float) Sequence[ (hm.last_element)+1 ] / hm.MAX_length );
-      if ( walked_in_z() || globalArgs.specular )
+      if ( walked_in_z() || globalArgs.mirror )
         fprintf( globalArgs.newickFile, "," );
     }
     if ( globalArgs.verbose ) fprintf(stderr, "<<<< Fallen through a node\n");
-    if ( walked_in_z() || globalArgs.specular )
+    if ( walked_in_z() || globalArgs.mirror )
     {
       createNode('z');
       if ( globalArgs.newickFile )
@@ -618,11 +609,11 @@ void createNode(int dir )
     if ( globalArgs.newickFile )
     {
       fprintf( globalArgs.newickFile, "+z:%.3f", (float) Sequence[ (hm.last_element)+1 ] / hm.MAX_length );
-      if ( walked_in_z() || globalArgs.specular )
+      if ( walked_in_z() || globalArgs.mirror )
         fprintf( globalArgs.newickFile, "," );
     }
     if ( globalArgs.verbose ) fprintf(stderr, "<<<< Fallen through a node\n");
-    if ( walked_in_z() || globalArgs.specular )
+    if ( walked_in_z() || globalArgs.mirror )
     {
       createNode('z');
       if ( globalArgs.newickFile )
@@ -699,7 +690,6 @@ int countContacts()
         contacts++;
     }
   }
-
   return contacts;
 }
 
@@ -717,27 +707,25 @@ int walked_in_z()
 
 void usage(char* pname)
 {
-    fprintf(stderr, "%s [-scb] [-M int] [-o file] [-E file] [-n int]\n", pname);
-    fprintf(stderr, "  -s       Compute also specular solutions (enantiomers)\n"
-                    "  -c       Do not print any outputs, only count number of\n"
-                    "           solutions. Overrides -o option\n"
-                    "  -b int   Extend the size of the bounding box. The Hamiltonian\n"
-                    "           walk will never be larger than <int> in any direction.\n"
-                    "           If the flag is not provided, the bounding box will be\n"
-                    "           the smallest possible\n" 
-                    "  -M int   Limits the number of solutions to find. The search\n"
+    fprintf(stderr, "%s [-m] [-b <INT>] [-M <INT>] [-o <prefix>] [-E <file>] [-n <INT>]\n", pname);
+    fprintf(stderr, "  -m       Compute also mirror-symmetry solutions (enantiomers).\n"
+                    "  -b INT   Extend the size of the bounding box. The Hamiltonian\n"
+                    "           walk will never be larger than <INT> in any direction.\n"
+                    "           If this flag is not specified, the default bounding box\n"
+                    "           is the smallest possible.\n" 
+                    "  -M INT   Limits the number of solutions to find. The search\n"
                     "           will stop when the number of solutions provided is\n"
-                    "           reached. A value of 0 means no limit (default)\n"
-                    "  -o file  Prints the coordinates of the solutions to files\n"
+                    "           reached. A value of 0 means no limit (default).\n"
+                    "  -o FILE  Prints the coordinates of the solutions to files\n"
                     "           <file>.0001, <file>.0002, ... If no -o flag is\n"
-                    "           provided, solutions are printed to stdout by default\n"
-                    "  -E file  Calculate number of contacts throughout folding.\n"
+                    "           provided, solutions are only counted.\n"
+                    "  -E FILE  Calculate number of contacts throughout folding.\n"
                     "           Argument to this flag is the file where the energies\n"
-                    "           are printed\n"
-                    "  -n file  Print the Newick format string for the search tree.\n"
-                    "           Argument to this flag is the file output for the tree\n"
-                    "  -v       Prints heaps of useless stuff. Mainly for debugging\n"
-                    "  -h       Prints (this) help message\n");
+                    "           are printed.\n"
+                    "  -n FILE  Print the Newick format string for the search tree.\n"
+                    "           Argument to this flag is the file output for the tree.\n"
+                    "  -v       Prints heaps of useless stuff. Mainly for debugging.\n"
+                    "  -h       Prints (this) help message.\n");
 }
 
 void print_hm ()
@@ -754,7 +742,7 @@ void print_hm ()
     {
       fprintf(stderr, "%d %d %d", hm.coord[i].x, hm.coord[i].y, hm.coord[i].z);
       if( j == E_len-1 )
-        fprintf(stderr, " * ", hm.coord[i].x, hm.coord[i].y, hm.coord[i].z);
+        fprintf(stderr, " * ");
       else
         fprintf(stderr, "   ");
       if( i == hm.length )
