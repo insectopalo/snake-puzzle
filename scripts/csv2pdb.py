@@ -7,29 +7,29 @@ __email__      = "gonzalo.s.nido@gmail.com"
 """Convert comma-separated coordinate files to PDB files.
 
 Usage:
-    program.py <input.csv> <output.pdb>
+    csv2pdb.py <input_files>
 
 Format of input/output files:
-    INPUT file is a comma-separated file with 3 columns: x, y, and z
-    respectively. Lines differing from this format will be skipped. The OUTPUT
-    file is a PDB file that can be visualised in molecular graphics
-    visualisation programs.
-
+    INPUT file(s) are comma-separated with 3 columns: x, y, and z. An arbitrary
+    number of input files can be given, also bash glob expressions. Note that
+    lines differing from the 3-field format will be skipped. For each CSV input
+    an OUTPUT PDB file will be generated. The name of the file will be the same
+    as the input with a .pdb extension appended. PDB files can be visualised in
+    molecular graphics visualisation programs.
 """
 
 import sys
 import re
 import getopt
+import glob
 
 def usage():
-    sys.stderr.write("usage: "+sys.argv[0]+" <inputfile.csv> " +
-                     "<outputfile.pdb>\n")
+    sys.stderr.write("USAGE: "+sys.argv[0]+" <inputfiles/glob expressions>\n")
+    sys.stderr.write("---\n")
     sys.stderr.write(sys.argv[0]+" converts files in comma-separated format " +
-                     "(CSV) into PDB files for molecular graphics visualisation software")
+                     "(CSV) into PDB files for molecular graphics visualisation software.\n")
 
 def main(argv):
-    inputfile = ''
-    outputfile = ''
     try:
         opts, args = getopt.getopt(argv,"h")
     except getopt.GetoptError:
@@ -39,48 +39,37 @@ def main(argv):
         if opt == '-h':
             usage()
             sys.exit()
-    if len(args) != 2:
+    if len(args) < 1:
         usage()
         sys.exit(2)
-    inputfile = args[0]
-    outputfile = args[1]
-    
-    try:
-        f = open(inputfile, 'r')
-    except IOError:
-        sys.stderr.write("File " + inputfile + " does not exist\n")
-        sys.exit(2)
-    try:
-        pdb = open(outputfile, 'w')
-    except IOError:
-        sys.stderr.write("File " + outputfile + " could not be opened for " +
-                         "writing")
-    lines = f.readlines()
-    f.close()
 
-    i = 1
-    for line in lines:
-        coords = map(float, line.split(','))
-        if len(coords) != 3:
-            sys.stderr.write("Line skipped, coordinates comma-separated " +
-                             "not found")
-            sys.stderr.write(line)
-        pdb.write( "ATOM     {0:2d}  BOX BOX     1       ".format(i) +
-                   "{0:.3f}   {1:.3f}   {2:.3f}\n".format(*coords))
-        i = i+1
+    files = list()
+    for g in args:
+        files.extend(glob.glob(g))
 
-    sys.stderr.write("CSV={} ".format(inputfile) +
-                     "to PDB={} [ SUCCESS ]\n".format(outputfile))
+    for fname in files:
+        f = open(fname)
+        lines = f.readlines()
+        f.close()
+        pdb = open(fname+'.pdb', "w")
+
+        i = 1
+        for line in lines:
+            coords = map(float, line.split(','))
+            if len(coords) != 3:
+                sys.stderr.write("Line skipped!\n")
+                sys.stderr.write(line)
+                continue
+            pdb.write( "ATOM     {0:2d}  BOX BOX     1       ".format(i) +
+                       "{0:.3f}   {1:.3f}   {2:.3f}\n".format(*coords))
+            i = i+1
+
+        for j in range(1,i-1):
+            pdb.write( "CONECT   {0:2d}   {1:2d}           \n".format(j,j+1))
+        pdb.close()
+        sys.stderr.write("CSV={} ".format(fname) +
+                         "to PDB={} [ SUCCESS ]\n".format(fname+'.pdb'))
 
 if __name__ == "__main__":
     main(sys.argv[1:])
 
-#for (i=0;i<dots;i++)
-#{
-#   fprintf(fp, "ATOM     %2d  BOX BOX     1      %2d.000  %2d.000  %2d.0000\n",i+1,HamWalk[i][0],HamWalk[i][1],HamWalk[i][2]);
-#}		
-#
-#for (i=0;i<dots-1;i++)
-#{
-#   fprintf(fp, "CONECT   %2d   %2d           \n",i+1,i+2);
-#}
