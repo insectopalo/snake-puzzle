@@ -72,3 +72,25 @@ Same input format as the previous scripts. For each input, a symmetric contact
 matrix will be output in comma-separated value format. Note that consecutive
 units are not counted as "in contact". The name of the file will be the same as
 the input with a *.contacts* extension appended.
+
+
+### `rotate_structures.py`: Generate all the possible rotations of a structure
+
+This script generates all the 24 non-superposable rotations in the discrete cartesian
+coordinate of a given structure(s).
+
+
+#### Usage
+
+```bash
+rotate_structures.py <input_files>
+```
+
+#### Format of input/output files
+
+The input is specified as in the previous scripts. For each input filename, a
+total of 24 files are output (also comma-separated value format) with the
+coordinates of each rotated structure. The name of the output files are the
+same as the input, with a *.rXX* appended, where *XX* is a number between 1 and
+24 (zero-padded).
+

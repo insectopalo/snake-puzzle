@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-__author__ = "Gonzalo S. Nido"
+__author__     = "Gonzalo S. Nido"
 __copyright__  = "Copyright 2016"
 __license__    = "MIT"
 __email__      = "gonzalo.s.nido@gmail.com"
