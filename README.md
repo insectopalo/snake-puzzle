@@ -4,10 +4,10 @@ CODE TO FOLD SNAKE PUZZLES IN 3D LATTICE
 ## Synopsis
 
 This code accompanies the paper "Learning Protein Folding and Evolution with a
-Snake Puzzle".  It includes a program written entirely in C code to fold snake
+Snake Puzzle". It includes a program written entirely in C code to fold snake
 puzzles through exhaustive search in a 3D lattice (`fold_snake.c`) together
 with a number of other scripts to allow further analysis of resulting 3D
-structures and visualisation written in Perl and R.
+structures and visualisation written in Python and R.
 
 
 ## Requirements and Installation
@@ -104,7 +104,7 @@ Note that the program by default tries to fold the puzzle within a bounding box
 **as smallest as possible**. While not recommended, you can extend the limits
 of the bounding cube. This will significantly increase the number of possible
 solutions and exponentially expand the search space, which may result in
-really, really, (*really*), long runtimes.  If you still want to expand the
+really, really, (*really*), long runtimes. If you still want to expand the
 search bounding **b**ox, use the option `-b <INT>`, where *INT* is a positive
 integer (corresponding to the length of the side of the bounding cubic volume).
 Providing a value of 0 will not use bounding box at all and allow the snake to
@@ -113,9 +113,9 @@ is never allowed to be violated. The value of -1 as an argument to the `-b`
 flag tries to fold the puzzle into the smallest volume that fits it.
 
 It is possible to print the number of contacts between the units of the snake
-along the folding process. Use the `-E <file>` option.  The required argument
+along the folding process. Use the `-E <file>` option. The required argument
 for the flag is the file name where the values are to be output. The output
-file format is a CSV with two columns.  The first column corresponds to the
+file format is a CSV with two columns. The first column corresponds to the
 number of contacts (non-consecutive units of the puzzle that are in contact in
 the 3-dimensional lattice), the second column is the number of puzzle units
 that have been already folded. This allows to easily normalise these values if
@@ -150,43 +150,43 @@ the search will be written in the file *energies.txt* (`-E`).
 ```
 
 will search the tree until the whole puzzle is folded for the first time. Only
-that solution will be returned (`-M 1`).  The search space will not be limited
+that solution will be returned (`-M 1`). The search space will not be limited
 to a particular cubic volume (`-b 0`), and hence the only solution returned
 will probably be non maximally compact (actually, it will be the maximally
-extended!).  The number of contacts along the search will be written into the
+extended!). The number of contacts along the search will be written into the
 file *contacts.dat* (`-E`). Since only maximally extended conformation is going
 to be returned, the number of contacts will all be zero in the *contacts.dat*
 file. Not much of a point but, hey. The coordinates for the solution will not
-be written into  a file (the `-o` option is not specified).
+be written into a file (the `-o` option is not specified).
 
 
 ### Usage of other scripts
 
 A number of other scripts are included in the repository in the `scripts`
 folder. Their functions are described in the [README.md](scripts/README.md)
-file contained in the `scripts` folder.  These scripts are written in Perl and
+file contained in the `scripts` folder. These scripts are written in Python and
 R, which means that the interpreters must be installed in your system for them
 to work.
 
 
-#### Perl
+#### Python 2
 
-Most Linux distributions come with Perl installed by default. If yours don't,
-have a look [here](http://learn.perl.org/installing/). If you don't have Linux,
+Most Linux distributions come with Python installed by default. If yours don't,
+have a look [here](https://www.python.org/downloads/). If you don't have Linux,
 have a look [here](http://www.gnu.org/philosophy/philosophy.en.html).
 
-To execute a perl script:
+To execute a Python script:
 ```bash
-perl script_name.pl [OPTIONS]
+python script_name.py [OPTIONS]
 ```
 
 In general the scripts come with a brief help that can be printed using the
 `-h` flag:
 ```bash
-perl script_name.pl -h
+python script_name.py -h
 ```
 
-
+Again, have a look at the [README.md](scripts/README.md) file in the *scripts* folder.
 #### R
 
 To install R on Debian-based Linux distributions
@@ -202,7 +202,7 @@ If in trouble, have a look
 
 The present implementation has been written mostly by Gonzalo S. Nido, and the
 code contained in the `ludo` folder has been written by Ludovica
-Bachschmid-Romano.  For an old-school Fortran implementation, talk to Alberto
+Bachschmid-Romano. For an old-school Fortran implementation, talk to Alberto
 Pascual-Garcia.
 
 
