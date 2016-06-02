@@ -668,7 +668,7 @@ void printCSV (int seq[], FILE * fh)
   int segment_nb = 0;
   int segment_size = seq[0]-1;
   fprintf(fh, "%.3f,%.3f,%.3f\n",(float) hm.coord[0].x, (float) hm.coord[0].y, (float) hm.coord[0].z);
-  for (i=1; i<hm.length; i++)
+  for (i=1; i<=hm.length; i++)
   {
      segment_size--;
      if ( segment_size == 0 ) {

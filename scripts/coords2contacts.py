@@ -19,7 +19,6 @@ Format of input/output files:
     appended.
 """
 
-#import re
 import getopt
 import sys
 import glob
